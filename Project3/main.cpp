@@ -261,6 +261,7 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
 
     Eigen::Vector3f result_color = {0, 0, 0};
     Eigen::Vector3f amb, dif, spe, l, v1;
+    // displacement 的颜色是通过三种光的叠加计算的
     for (auto& light : lights)
     {
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
@@ -287,16 +288,16 @@ Eigen::Vector3f bump_fragment_shader(const fragment_shader_payload& payload)    
 
     auto l1 = light{{20, 20, 20}, {500, 500, 500}};
     auto l2 = light{{-20, 20, 0}, {500, 500, 500}};
-
-    std::vector<light> lights = {l1, l2};
-    Eigen::Vector3f amb_light_intensity{10, 10, 10};
-    Eigen::Vector3f eye_pos{0, 0, 10};
+        
+    std::vector<light> lights = {l1, l2};               //光的位置与强度
+    Eigen::Vector3f amb_light_intensity{10, 10, 10};    //环境光强度
+    Eigen::Vector3f eye_pos{0, 0, 10};                  //眼镜观察位置
 
     float p = 150;
 
-    Eigen::Vector3f color = payload.color; 
-    Eigen::Vector3f point = payload.view_pos;
-    Eigen::Vector3f normal = payload.normal;
+    Eigen::Vector3f color = payload.color;          
+    Eigen::Vector3f point = payload.view_pos;       
+    Eigen::Vector3f normal = payload.normal;        //法向量
 
 
     float kh = 0.2, kn = 0.1;
@@ -314,8 +315,8 @@ Eigen::Vector3f bump_fragment_shader(const fragment_shader_payload& payload)    
     float x, y, z;
     Vector3f t, b;
     x = normal.x(), y = normal.y(), z = normal.z();
-    t << x * y / sqrt(x * x + z * z), sqrt(x * x + z * z), z* y / sqrt(x * x + z * z);
-    b = normal.cross(t);
+    t << x * y / sqrt(x * x + z * z), sqrt(x * x + z * z), z* y / sqrt(x * x + z * z);      //t: tangent切线
+    b = normal.cross(t);                                                                    //bitangern副切线
 
     Matrix3f TBN;
     TBN << t.x(), b.x(), normal.x(),
@@ -328,15 +329,14 @@ Eigen::Vector3f bump_fragment_shader(const fragment_shader_payload& payload)    
     w = payload.texture->width;
     h = payload.texture->height;
 
+    // 凹凸贴图 是从纹理图上获取颜色
     float dU = kh * kn * (payload.texture->getColorBilinear(u + 1.0 / w, v).norm() - payload.texture->getColorBilinear(u, v).norm());
     float dV = kh * kn * (payload.texture->getColorBilinear(u, v + 1.0 / h).norm() - payload.texture->getColorBilinear(u, v).norm());
 
     Vector3f ln;
     ln << -dU, dV, 1;
 
-    normal = (TBN * ln).normalized();
-
-
+    normal = (TBN * ln).normalized();       //法向量
 
     Eigen::Vector3f result_color = {0, 0, 0};
     result_color = normal;
@@ -381,7 +381,7 @@ int main(int argc, const char** argv)
     //定义了一个fragment_shader_payload，并从命令行获取要使用的着色器，
     //这个payload包括了 Fragment Shader 可能用到的参数，以及要使用的shader类型，
     //它的通用性保证了调用不同的shader时不用再重复写不同的代码
-    std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = bump_fragment_shader;
+    std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = displacement_fragment_shader;
 
     if (argc >= 2)
     {
